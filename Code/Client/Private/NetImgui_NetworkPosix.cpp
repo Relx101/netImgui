@@ -33,6 +33,7 @@ struct SocketInfo
 
 	    // Set SO_LINGER option to force close and discard pending data 
 	    // to ensure the socket is closed immediately and exits the CLOSE_WAIT state more reliably
+	    // test with > watch -n 0.5 "sudo netstat -ntp | grep 8889"
 	    struct linger sl;
 	    sl.l_onoff = 1; // Enable linger
 	    sl.l_linger = 0; // Set timeout to 0 seconds (force RST)
