@@ -14,8 +14,6 @@
 
 #include "NetImgui_CmdPackets.h" 
 
-// NOTE: Removed static_assert(0) as requested changes are implemented below
-
 namespace NetImgui { namespace Internal { namespace Network
 {
 
@@ -33,13 +31,20 @@ struct SocketInfo
             int flags = fcntl(mSocket, F_GETFL, 0);
             fcntl(mSocket, F_SETFL, flags | O_NONBLOCK);
 
+	    // Set SO_LINGER option to force close and discard pending data 
+	    // to ensure the socket is closed immediately and exits the CLOSE_WAIT state more reliably
+	    struct linger sl;
+	    sl.l_onoff = 1; // Enable linger
+	    sl.l_linger = 0; // Set timeout to 0 seconds (force RST)
+	    setsockopt(mSocket, SOL_SOCKET, SO_LINGER, &sl, sizeof(sl));
+			
             // Set TCP No Delay
             int flag = 1;
             setsockopt(mSocket, IPPROTO_TCP, TCP_NODELAY, (char*)&flag, sizeof(int));
 
-            // Optional: Set Send Buffer Size (Mirroring Win32's attempt)
-            // int kComsSendBuffer = 2 * mSendSizeMax;
-            // setsockopt(mSocket, SOL_SOCKET, SO_SNDBUF, (char*)&kComsSendBuffer, sizeof(kComsSendBuffer));
+            // Set Send Buffer Size (Mirroring Win32's attempt)
+            int kComsSendBuffer = 2 * mSendSizeMax;
+            setsockopt(mSocket, SOL_SOCKET, SO_SNDBUF, (char*)&kComsSendBuffer, sizeof(kComsSendBuffer));
         }
     }
 
@@ -218,13 +223,6 @@ void Disconnect(SocketInfo* pClientSocket)
 {
     if (pClientSocket && pClientSocket->mSocket != -1)
     {
-		// Set SO_LINGER option to force close and discard pending data 
-		// to ensure the socket is closed immediately and exits the CLOSE_WAIT state more reliably
-		struct linger sl;
-		sl.l_onoff = 1; // Enable linger
-		sl.l_linger = 0; // Set timeout to 0 seconds (force RST)
-		setsockopt(pClientSocket->mSocket, SOL_SOCKET, SO_LINGER, &sl, sizeof(sl));
-
         shutdown(pClientSocket->mSocket, SHUT_RDWR);
         close(pClientSocket->mSocket);
         pClientSocket->mSocket = -1; // Mark as closed
